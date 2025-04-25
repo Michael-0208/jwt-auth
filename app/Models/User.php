@@ -6,11 +6,30 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     use HasFactory, Notifiable;
+/**
+     * Get the identifier that will be stored in the JWT payload.
+     *
+     * @return mixed
+     */
+    public function getJWTIdentifier()
+    {
+        return $this->getKey(); // Typically the user ID
+    }
 
+    /**
+     * Get custom JWT claims.
+     *
+     * @return array
+     */
+    public function getJWTCustomClaims()
+    {
+        return []; // You can add custom claims if needed
+    }
     /**
      * The attributes that are mass assignable.
      *

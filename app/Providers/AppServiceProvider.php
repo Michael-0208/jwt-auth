@@ -2,28 +2,24 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\ServiceProvider;
 use App\Models\User;
 use App\Observers\UserObserver;
-use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
-     *
-     * @return void
      */
-    public function register()
+    public function register(): void
     {
         //
     }
 
     /**
      * Bootstrap any application services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         // This observer is used to log the user's activity in User model
         User::observe(UserObserver::class);

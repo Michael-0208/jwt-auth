@@ -22,9 +22,15 @@ class Kernel extends ConsoleKernel
      * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
      * @return void
      */
-    protected function schedule(Schedule $schedule)
+    protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
+        // Update user locations every 5 minutes
+        $schedule->command('users:update-locations')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
+        // New command for storing user locations
+        $schedule->command('users:send-login-reminders')->daily();
     }
 
     /**
@@ -32,7 +38,7 @@ class Kernel extends ConsoleKernel
      *
      * @return void
      */
-    protected function commands()
+    protected function commands(): void
     {
         $this->load(__DIR__.'/Commands');
 

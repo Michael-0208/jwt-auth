@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\JwtBlacklist;
 use App\Models\User;
 use App\Notifications\ForgotPasswordNotification;
 use App\Notifications\RegisterationNotification;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Facades\JWTAuth;
+
 
 class AuthController extends Controller
 {
@@ -59,12 +61,14 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required|string|min:6',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180'
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }   
+            return response()->json($validator->errors(), 422);
+        }
 
         $credentials = $request->only('email', 'password');
         if (!$token = JWTAuth::attempt($credentials)) {
@@ -72,14 +76,49 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        return response()->json(compact('token'));
-        
+        // Store coordinates in session
+        session(['user_latitude' => $request->latitude]);
+        session(['user_longitude' => $request->longitude]);
+
+        // Get the authenticated user
+        $user = auth()->user();
+
+        // Trigger the loggedIn event
+        event('eloquent.loggedIn: ' . User::class, $user);
+
+        return $this->createNewToken($token);
+    }
+
+    protected function createNewToken($token)
+    {
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => auth()->factory()->getTTL() * 60,
+            'user' => auth()->user()
+        ]);
     }
 
     public function logout(Request $request)
     {
-        JWTAuth::invalidate(JWTAuth::getToken());
-        return response()->json(['message' => 'Successfully logged out']);
+        try {
+            $token = JWTAuth::getToken();
+            JWTAuth::invalidate($token);
+            
+            // Add token to blacklist
+            JwtBlacklist::create([
+                'token' => $token,
+                'expires_at' => now()->addMinutes(config('jwt.ttl')),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            
+            Log::info('User logged out successfully');
+            return response()->json(['message' => 'Successfully logged out']);
+        } catch (\Exception $e) {
+            Log::channel('critical_errors')->error('Logout failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to logout'], 500);
+        }
     }
 
     public function forgotPassword(Request $request)

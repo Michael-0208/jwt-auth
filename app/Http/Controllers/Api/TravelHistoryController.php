@@ -13,8 +13,17 @@ class TravelHistoryController extends Controller
      */
     public function getTravelHistory(Request $request)
     {
-        $coordinates = UserCoordinate::where('user_id', $request->user()->id)
-            ->orderBy('created_at', 'desc')
+        $query = UserCoordinate::where('user_id', $request->user()->id);
+
+        // Apply date range filter if provided
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('created_at', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        }
+
+        $coordinates = $query->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($coordinate) {
                 return [
